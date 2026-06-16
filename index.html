@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FORMA — Gallery</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --ink:    #0a0a0a;
+      --paper:  #f4f4f2;
+      --rule:   rgba(10,10,10,0.09);
+      --ease:   cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 300;
+      cursor: none;
+      overflow-x: hidden;
+    }
+
+    /* Grain overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 998;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+    }
+
+    /* ── Loader ─────────────────────────────────────────── */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: var(--ink);
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 1s var(--ease), visibility 1s;
+    }
+
+    #loader.gone { opacity: 0; visibility: hidden; }
+
+    .loader-word {
+      color: var(--paper);
+      font-size: 11px;
+      letter-spacing: 0.55em;
+      text-transform: uppercase;
+      font-weight: 400;
+      opacity: 0;
+      animation: loaderIn 0.7s 0.3s var(--ease) forwards;
+    }
+
+    @keyframes loaderIn { to { opacity: 1; } }
+
+    /* ── Cursor ─────────────────────────────────────────── */
+    #cursor {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      mix-blend-mode: difference;
+      transition: width 0.4s var(--ease), height 0.4s var(--ease);
+    }
+
+    #cursor.big {
+      width: 48px;
+      height: 48px;
+    }
+
+    /* ── Navigation ─────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 30px 56px;
+      mix-blend-mode: difference;
+    }
+
+    .logo {
+      color: white;
+      font-size: 11px;
+      letter-spacing: 0.48em;
+      text-transform: uppercase;
+      font-weight: 400;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 44px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: white;
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      text-decoration: none;
+      opacity: 0.5;
+      transition: opacity 0.3s;
+    }
+
+    .nav-links a:hover { opacity: 1; }
+
+    /* ── Hero ───────────────────────────────────────────── */
+    .hero {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    /* Left: editorial text */
+    .hero-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 48px 56px 64px;
+      gap: 36px;
+      border-right: 1px solid var(--rule);
+    }
+
+    .eyebrow {
+      font-size: 10px;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      opacity: 0.38;
+    }
+
+    .hero-title {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: clamp(60px, 7.2vw, 110px);
+      font-weight: 400;
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-title em {
+      font-style: italic;
+      opacity: 0.32;
+    }
+
+    .hero-body {
+      font-size: 13px;
+      line-height: 1.9;
+      opacity: 0.42;
+      max-width: 340px;
+    }
+
+    /* CTA button */
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 22px;
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      padding: 16px 28px;
+      border: 1px solid var(--ink);
+      color: var(--ink);
+      text-decoration: none;
+      width: fit-content;
+      cursor: none;
+      position: relative;
+      overflow: hidden;
+      transition: color 0.45s;
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--ink);
+      transform: translateX(-102%);
+      transition: transform 0.5s var(--ease);
+    }
+
+    .cta:hover::before { transform: translateX(0); }
+    .cta:hover { color: var(--paper); }
+
+    .cta-label, .cta-arrow {
+      position: relative;
+    }
+
+    .cta-arrow { transition: transform 0.45s var(--ease); }
+    .cta:hover .cta-arrow { transform: translateX(7px); }
+
+    /* Right: featured artwork (CSS circles on black) */
+    .hero-art {
+      background: var(--ink);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .target {
+      width: 36%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--paper);
+      box-shadow:
+        0 0 0 1px var(--ink),
+        0 0 0 20px var(--paper),
+        0 0 0 21px var(--ink),
+        0 0 0 41px var(--paper),
+        0 0 0 42px var(--ink),
+        0 0 0 62px var(--paper),
+        0 0 0 63px var(--ink),
+        0 0 0 83px rgba(244,244,242,0.18),
+        0 0 0 140px rgba(244,244,242,0.06);
+      animation: breathe 7s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.025); }
+    }
+
+    .art-label {
+      position: absolute;
+      bottom: 38px;
+      right: 48px;
+      color: var(--paper);
+      opacity: 0.28;
+      font-size: 10px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+    }
+
+    /* ── Ticker ─────────────────────────────────────────── */
+    .ticker-wrap {
+      height: 46px;
+      border-bottom: 1px solid var(--rule);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    .ticker {
+      display: flex;
+      white-space: nowrap;
+      animation: run 32s linear infinite;
+    }
+
+    .ticker span {
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      opacity: 0.28;
+      padding: 0 32px;
+    }
+
+    .ticker .dot { opacity: 0.14; }
+
+    @keyframes run {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ── Gallery Section ────────────────────────────────── */
+    .section {
+      padding: 96px 56px 112px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--rule);
+      padding-bottom: 28px;
+      margin-bottom: 60px;
+    }
+
+    .section-title {
+      font-family: Georgia, serif;
+      font-size: 30px;
+      font-weight: 400;
+      letter-spacing: -0.025em;
+    }
+
+    .section-meta {
+      font-size: 10px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      opacity: 0.32;
+    }
+
+    /* ── Gallery Grid ───────────────────────────────────── */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(4, 310px);
+      gap: 2px;
+      background: var(--ink);
+      box-shadow:
+        0 4px 20px rgba(10,10,10,0.06),
+        0 24px 80px rgba(10,10,10,0.12),
+        0 60px 140px rgba(10,10,10,0.10);
+    }
+
+    /* Span overrides */
+    .gallery .piece:nth-child(1) { grid-column: 1 / 3; }
+    .gallery .piece:nth-child(5) { grid-column: 3; grid-row: 2 / 4; }
+    .gallery .piece:nth-child(8) { grid-column: 1 / 3; }
+
+    .piece {
+      position: relative;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    .art {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transition: transform 0.95s var(--ease);
+    }
+
+    .piece:hover .art { transform: scale(1.03); }
+
+    /* Hover info overlay */
+    .info {
+      position: absolute;
+      inset: 0;
+      background: var(--ink);
+      opacity: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 36px;
+      gap: 12px;
+      transition: opacity 0.5s;
+    }
+
+    .piece:hover .info { opacity: 0.92; }
+
+    .art-name {
+      color: var(--paper);
+      font-family: Georgia, serif;
+      font-size: 21px;
+      font-weight: 400;
+      transform: translateY(14px);
+      transition: transform 0.55s var(--ease);
+    }
+
+    .art-year {
+      color: var(--paper);
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      opacity: 0.4;
+      transform: translateY(14px);
+      transition: transform 0.55s 0.06s var(--ease);
+    }
+
+    .piece:hover .art-name,
+    .piece:hover .art-year { transform: translateY(0); }
+
+    /* ════════════════════════════════════════════════════
+       CSS ARTWORKS
+    ════════════════════════════════════════════════════ */
+
+    /* 1. Equilibrium — two overlapping circles */
+    .a-equilibrium { background: var(--paper); }
+
+    .a-equilibrium::before {
+      content: '';
+      position: absolute;
+      width: 38%; aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--ink);
+      top: 50%; left: 26%;
+      transform: translateY(-50%);
+    }
+
+    .a-equilibrium::after {
+      content: '';
+      position: absolute;
+      width: 38%; aspect-ratio: 1;
+      border-radius: 50%;
+      border: 1.5px solid var(--ink);
+      top: 50%; left: 42%;
+      transform: translateY(-50%);
+    }
+
+    /* 2. Strata — fine horizontal lines */
+    .a-strata {
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          var(--ink) 0, var(--ink) 1px,
+          var(--paper) 1px, var(--paper) 13px
+        );
+    }
+
+    /* 3. Meridian — perpendicular axes */
+    .a-meridian { background: var(--paper); }
+
+    .a-meridian::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(var(--ink), var(--ink)) 50% 0 / 1px 100% no-repeat,
+        linear-gradient(var(--ink), var(--ink)) 0 50% / 100% 1px no-repeat;
+    }
+
+    .a-meridian::after {
+      content: '';
+      position: absolute;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--ink);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* 4. Compression — concentric squares */
+    .a-compression {
+      background: var(--paper);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .compression-core {
+      width: 22%; aspect-ratio: 1;
+      background: var(--ink);
+      box-shadow:
+        0 0 0 11px var(--paper),
+        0 0 0 22px var(--ink),
+        0 0 0 33px var(--paper),
+        0 0 0 44px var(--ink),
+        0 0 0 55px var(--paper),
+        0 0 0 66px rgba(10,10,10,0.3),
+        0 0 0 100px rgba(10,10,10,0.08);
+    }
+
+    /* 5. Silence — void with a single point of light */
+    .a-silence { background: var(--ink); }
+
+    .a-silence::before {
+      content: '';
+      position: absolute;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--paper);
+      top: 30%; left: 33%;
+    }
+
+    .a-silence::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        ellipse 32% 26% at 34% 31%,
+        rgba(244,244,242,0.07) 0%,
+        transparent 100%
+      );
+    }
+
+    /* 6. Division — diagonal quadrants */
+    .a-division {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 2px;
+      background: var(--ink);
+    }
+
+    .a-division .q { display: block; }
+    .a-division .q-w { background: var(--paper); }
+    .a-division .q-b { background: var(--ink); }
+
+    /* 7. Rhythm — barcode-like vertical lines */
+    .a-rhythm {
+      background-color: var(--paper);
+      background-image:
+        repeating-linear-gradient(
+          to right,
+          var(--ink) 0,    var(--ink) 2px,
+          transparent 2px, transparent 10px,
+          var(--ink) 10px, var(--ink) 11px,
+          transparent 11px, transparent 18px,
+          var(--ink) 18px, var(--ink) 22px,
+          transparent 22px, transparent 30px,
+          var(--ink) 30px, var(--ink) 31px,
+          transparent 31px, transparent 42px
+        );
+      background-size: 42px 100%;
+    }
+
+    /* 8. Singularity — nested squares with filled center */
+    .a-singularity { background: var(--paper); }
+
+    .a-singularity::before {
+      content: '';
+      position: absolute;
+      inset: 14%;
+      border: 1.5px solid var(--ink);
+    }
+
+    .a-singularity::after {
+      content: '';
+      position: absolute;
+      inset: 34%;
+      background: var(--ink);
+    }
+
+    /* 9. Emergence — overlapping arcs */
+    .a-emergence {
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .a-emergence::before {
+      content: '';
+      position: absolute;
+      width: 135%; aspect-ratio: 1;
+      border-radius: 50%;
+      border: 1.5px solid var(--ink);
+      top: -18%; left: -18%;
+    }
+
+    .a-emergence::after {
+      content: '';
+      position: absolute;
+      width: 85%; aspect-ratio: 1;
+      border-radius: 50%;
+      border: 1px solid var(--ink);
+      bottom: -22%; right: -8%;
+      opacity: 0.3;
+    }
+
+    /* ── About ──────────────────────────────────────────── */
+    .about {
+      border-top: 1px solid var(--rule);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .about-text {
+      padding: 88px 56px;
+      border-right: 1px solid var(--rule);
+    }
+
+    .about-text h2 {
+      font-family: Georgia, serif;
+      font-size: clamp(26px, 2.8vw, 42px);
+      font-weight: 400;
+      line-height: 1.22;
+      letter-spacing: -0.025em;
+      margin-bottom: 34px;
+      max-width: 460px;
+    }
+
+    .about-text p {
+      font-size: 14px;
+      line-height: 1.95;
+      opacity: 0.4;
+      max-width: 380px;
+    }
+
+    .about-stats {
+      padding: 88px 56px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 52px 40px;
+      align-content: center;
+    }
+
+    .stat-n {
+      font-family: Georgia, serif;
+      font-size: 58px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: -0.045em;
+    }
+
+    .stat-l {
+      margin-top: 10px;
+      font-size: 10px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      opacity: 0.32;
+    }
+
+    /* ── Footer ─────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--rule);
+      padding: 36px 56px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .f-logo {
+      font-size: 10px;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      opacity: 0.26;
+    }
+
+    .f-copy {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      opacity: 0.2;
+    }
+
+    /* ── Scroll reveal ──────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.95s var(--ease), transform 0.95s var(--ease);
+    }
+
+    .reveal.in {
+      opacity: 1;
+      transform: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loader -->
+  <div id="loader">
+    <div class="loader-word">Forma</div>
+  </div>
+
+  <!-- Cursor -->
+  <div id="cursor"></div>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="logo">Forma</div>
+    <ul class="nav-links">
+      <li><a href="#gallery">Collection</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#">Visit</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Contemporary Art &mdash; Est. 2008</p>
+      <h1 class="hero-title">
+        Form<br>
+        <em>&amp; Void</em>
+      </h1>
+      <p class="hero-body">
+        A space dedicated to the intersection of geometry, silence, and perception. Where negative space speaks louder than form.
+      </p>
+      <a href="#gallery" class="cta">
+        <span class="cta-label">View Collection</span>
+        <span class="cta-arrow">&#8594;</span>
+      </a>
+    </div>
+
+    <div class="hero-art">
+      <div class="target"></div>
+      <div class="art-label">No.&#8202;01 &mdash; Circles of Being</div>
+    </div>
+  </section>
+
+  <!-- ── Ticker ────────────────────────────────────────── -->
+  <div class="ticker-wrap" aria-hidden="true">
+    <div class="ticker">
+      <span>Form</span><span class="dot">&mdash;</span>
+      <span>Space</span><span class="dot">&mdash;</span>
+      <span>Silence</span><span class="dot">&mdash;</span>
+      <span>Light</span><span class="dot">&mdash;</span>
+      <span>Shadow</span><span class="dot">&mdash;</span>
+      <span>Void</span><span class="dot">&mdash;</span>
+      <span>Presence</span><span class="dot">&mdash;</span>
+      <span>Absence</span><span class="dot">&mdash;</span>
+      <span>Geometry</span><span class="dot">&mdash;</span>
+      <span>Reduction</span><span class="dot">&mdash;</span>
+      <!-- duplicate for seamless loop -->
+      <span>Form</span><span class="dot">&mdash;</span>
+      <span>Space</span><span class="dot">&mdash;</span>
+      <span>Silence</span><span class="dot">&mdash;</span>
+      <span>Light</span><span class="dot">&mdash;</span>
+      <span>Shadow</span><span class="dot">&mdash;</span>
+      <span>Void</span><span class="dot">&mdash;</span>
+      <span>Presence</span><span class="dot">&mdash;</span>
+      <span>Absence</span><span class="dot">&mdash;</span>
+      <span>Geometry</span><span class="dot">&mdash;</span>
+      <span>Reduction</span><span class="dot">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── Gallery ───────────────────────────────────────── -->
+  <section class="section" id="gallery">
+    <div class="section-head reveal">
+      <h2 class="section-title">Current Collection</h2>
+      <span class="section-meta">09 Works &nbsp;&middot;&nbsp; 2021&ndash;2024</span>
+    </div>
+
+    <div class="gallery reveal" style="transition-delay:.12s">
+
+      <!-- 1. Equilibrium — col 1-2, row 1 -->
+      <div class="piece">
+        <div class="art a-equilibrium"></div>
+        <div class="info">
+          <div class="art-name">Equilibrium</div>
+          <div class="art-year">Oil on linen &nbsp;&middot;&nbsp; 2024</div>
+        </div>
+      </div>
+
+      <!-- 2. Strata — col 3, row 1 -->
+      <div class="piece">
+        <div class="art a-strata"></div>
+        <div class="info">
+          <div class="art-name">Strata</div>
+          <div class="art-year">Mixed media &nbsp;&middot;&nbsp; 2023</div>
+        </div>
+      </div>
+
+      <!-- 3. Meridian — col 1, row 2 -->
+      <div class="piece">
+        <div class="art a-meridian"></div>
+        <div class="info">
+          <div class="art-name">Meridian</div>
+          <div class="art-year">Graphite on paper &nbsp;&middot;&nbsp; 2024</div>
+        </div>
+      </div>
+
+      <!-- 4. Compression — col 2, row 2 -->
+      <div class="piece">
+        <div class="art a-compression">
+          <div class="compression-core"></div>
+        </div>
+        <div class="info">
+          <div class="art-name">Compression</div>
+          <div class="art-year">Ink on board &nbsp;&middot;&nbsp; 2022</div>
+        </div>
+      </div>
+
+      <!-- 5. Silence — col 3, rows 2-3 (tall) -->
+      <div class="piece">
+        <div class="art a-silence"></div>
+        <div class="info">
+          <div class="art-name">Silence</div>
+          <div class="art-year">Oil on canvas &nbsp;&middot;&nbsp; 2023</div>
+        </div>
+      </div>
+
+      <!-- 6. Division — col 1, row 3 -->
+      <div class="piece">
+        <div class="art a-division">
+          <span class="q q-w"></span>
+          <span class="q q-b"></span>
+          <span class="q q-b"></span>
+          <span class="q q-w"></span>
+        </div>
+        <div class="info">
+          <div class="art-name">Division</div>
+          <div class="art-year">Acrylic on panel &nbsp;&middot;&nbsp; 2021</div>
+        </div>
+      </div>
+
+      <!-- 7. Rhythm — col 2, row 3 -->
+      <div class="piece">
+        <div class="art a-rhythm"></div>
+        <div class="info">
+          <div class="art-name">Rhythm</div>
+          <div class="art-year">Digital print &nbsp;&middot;&nbsp; 2024</div>
+        </div>
+      </div>
+
+      <!-- 8. Singularity — col 1-2, row 4 (wide) -->
+      <div class="piece">
+        <div class="art a-singularity"></div>
+        <div class="info">
+          <div class="art-name">Singularity</div>
+          <div class="art-year">Oil on linen &nbsp;&middot;&nbsp; 2022</div>
+        </div>
+      </div>
+
+      <!-- 9. Emergence — col 3, row 4 -->
+      <div class="piece">
+        <div class="art a-emergence"></div>
+        <div class="info">
+          <div class="art-name">Emergence</div>
+          <div class="art-year">Graphite on paper &nbsp;&middot;&nbsp; 2023</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── About ─────────────────────────────────────────── -->
+  <section class="about" id="about">
+    <div class="about-text reveal">
+      <h2>The space between things is where meaning lives.</h2>
+      <p>
+        Forma was founded on the belief that restraint is the highest form of expression.
+        We exhibit works that embrace reduction &mdash; that find the essential and let
+        everything else dissolve into white.
+      </p>
+    </div>
+
+    <div class="about-stats">
+      <div class="reveal">
+        <div class="stat-n" data-target="218">0</div>
+        <div class="stat-l">Works exhibited</div>
+      </div>
+      <div class="reveal" style="transition-delay:.09s">
+        <div class="stat-n" data-target="47">0</div>
+        <div class="stat-l">Artists represented</div>
+      </div>
+      <div class="reveal" style="transition-delay:.18s">
+        <div class="stat-n" data-target="16">0</div>
+        <div class="stat-l">Years of practice</div>
+      </div>
+      <div class="reveal" style="transition-delay:.27s">
+        <div class="stat-n" data-target="3">0</div>
+        <div class="stat-l">Gallery locations</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────── -->
+  <footer>
+    <div class="f-logo">Forma Gallery</div>
+    <div class="f-copy">&copy; 2024 Forma. All rights reserved.</div>
+  </footer>
+
+  <script>
+    'use strict';
+
+    /* ── Loader ──────────────────────────────────────────── */
+    window.addEventListener('load', () => {
+      setTimeout(() => document.getElementById('loader').classList.add('gone'), 1100);
+    });
+
+    /* ── Custom cursor ───────────────────────────────────── */
+    const cur = document.getElementById('cursor');
+    let mx = 0, my = 0, cx = 0, cy = 0;
+
+    document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+
+    (function moveCursor() {
+      cx += (mx - cx) * 0.14;
+      cy += (my - cy) * 0.14;
+      cur.style.left = cx + 'px';
+      cur.style.top  = cy + 'px';
+      requestAnimationFrame(moveCursor);
+    })();
+
+    document.querySelectorAll('a, .piece, .cta').forEach(el => {
+      el.addEventListener('mouseenter', () => cur.classList.add('big'));
+      el.addEventListener('mouseleave', () => cur.classList.remove('big'));
+    });
+
+    /* ── Scroll reveal ───────────────────────────────────── */
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    /* ── Counter animation ───────────────────────────────── */
+    const seen = new Set();
+    const cio  = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting || seen.has(e.target)) return;
+        seen.add(e.target);
+        const el     = e.target;
+        const target = parseInt(el.dataset.target, 10);
+        const t0     = performance.now();
+        const dur    = 1500;
+
+        (function tick(now) {
+          const p = Math.min((now - t0) / dur, 1);
+          const v = 1 - Math.pow(1 - p, 3);       /* ease-out cubic */
+          el.textContent = Math.floor(v * target);
+          if (p < 1) requestAnimationFrame(tick);
+          else el.textContent = target;
+        })(t0);
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('[data-target]').forEach(el => cio.observe(el));
+
+    /* ── Hero parallax ───────────────────────────────────── */
+    const tgt = document.querySelector('.target');
+    window.addEventListener('scroll', () => {
+      tgt.style.transform = `translateY(${window.scrollY * 0.1}px)`;
+    }, { passive: true });
+  </script>
+
+</body>
+</html>
